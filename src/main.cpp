@@ -152,54 +152,30 @@ namespace Detection
 
 namespace Refraction
 {
-	inline void set_refraction(RE::NiAVObject* a_object, bool a_enable, float a_power)
+	//replacing the refraction_recursive function missed some weapon shapes, idk why
+	
+	inline void set_refraction(RE::NiAVObject* a_object, bool a_enable, float a_power, bool a_unk04)
 	{
-		using Flag = RE::BSShaderProperty::EShaderPropertyFlag;
-		using Flag8 = RE::BSShaderProperty::EShaderPropertyFlag8;
-
-		const auto power = std::fminf(std::fmaxf(a_power, 0.0f), 1.0f);
-
-		RE::BSVisit::TraverseScenegraphGeometries(a_object, [&](RE::BSGeometry* a_geometry) -> RE::BSVisit::BSVisitControl {
-			if (const auto shape = a_geometry->AsTriShape(); shape) {
-				const auto shaderProp = netimmerse_cast<RE::BSShaderProperty*>(a_geometry->properties[RE::BSGeometry::States::kEffect].get());
-				if (shaderProp) {
-					shaderProp->SetFlags(Flag8::kTempRefraction, a_enable);
-
-					if (const auto lightingShader = netimmerse_cast<RE::BSLightingShaderProperty*>(shaderProp); lightingShader && lightingShader->flags.none(Flag::kRefraction)) {
-						if (auto material = lightingShader->material; material) {
-							//set_unique
-							if (!material->unk30) {
-								lightingShader->SetMaterial(material, true);
-							}
-
-							//this is what breaks the refraction shader
-							//lightingShader->SetFlags(Flag8::kNonProjectiveShadows, a_enable);
-
-							static_cast<RE::BSLightingShaderMaterialBase*>(lightingShader->material)->refractionPower = power;
-						}
-					}
-				}
-			}
-
-			return RE::BSVisit::BSVisitControl::kContinue;
-		});
+		using func_t = decltype(&set_refraction);
+		REL::Relocation<func_t> func{ REL::ID(106513) };
+		return func(a_object,a_enable, a_power, a_unk04);
 	}
 
 	namespace Alt
 	{
-		struct SetRefractionRecursive
+		struct SetShaderFlag
 		{
-			static void func(RE::NiAVObject* a_object, bool a_enable, float a_power)
+			static void thunk(RE::BSShaderProperty*, RE::BSShaderProperty::EShaderPropertyFlag8, bool)
 			{
-				set_refraction(a_object, a_enable, a_power);
+				return;
 			}
-			static inline constexpr std::size_t size = 0x14A;
+			static inline REL::Relocation<decltype(thunk)> func;
 		};
 
 		void Install()
 		{
-			REL::Relocation<std::uintptr_t> func{ REL::ID(106513) };
-			stl::asm_replace<Alt::SetRefractionRecursive>(func.address());
+			REL::Relocation<std::uintptr_t> target{ REL::ID(106513) };
+			stl::write_thunk_call<Alt::SetShaderFlag>(target.address() + 0xAE);
 		}
 	}
 
@@ -235,7 +211,7 @@ namespace MakeInvisible
 					const auto actor = user ? user->As<RE::Actor>() : nullptr;
 					if (actor && detail::has_refraction(actor)) {
 						//doesn't matter what refraction power is
-						Refraction::set_refraction(a_this->decal.get(), true, 1.0f);
+						Refraction::set_refraction(a_this->decal.get(), true, 1.0f, true);
 					}
 				}
 			}
@@ -258,7 +234,7 @@ namespace MakeInvisible
 				if (a_projectile3D) {
 					const auto actor = stl::adjust_pointer<RE::Actor>(a_extraList, -0x70);
 					if (actor && detail::has_refraction(actor)) {
-						Refraction::set_refraction(a_projectile3D.get(), true, 0.5f);
+						Refraction::set_refraction(a_projectile3D.get(), true, 0.5f, true);
 					}
 				}
 
@@ -327,7 +303,7 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 	SKSE::Init(a_skse);
 
 	if (Settings::GetSingleton()->LoadSettings()) {
-		SKSE::AllocTrampoline(42);
+		SKSE::AllocTrampoline(56);
 
 		Refraction::Install();
 		MakeInvisible::Install();
