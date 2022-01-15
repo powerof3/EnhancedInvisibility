@@ -327,7 +327,7 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 	SKSE::Init(a_skse);
 
 	if (Settings::GetSingleton()->LoadSettings()) {
-		SKSE::AllocTrampoline(48);
+		SKSE::AllocTrampoline(42);
 
 		Refraction::Install();
 		MakeInvisible::Install();
