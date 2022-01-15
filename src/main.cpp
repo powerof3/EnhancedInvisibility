@@ -47,8 +47,8 @@ namespace UninterruptedAlteredStates
 
 		void Install()
 		{
-			REL::Relocation<std::uintptr_t> target{ REL::ID(19796) };
-			stl::write_thunk_call<DispelAlteredStates>(target.address() + 0x74A);
+			REL::Relocation<std::uintptr_t> target{ REL::ID(19369) };
+			stl::write_thunk_call<DispelAlteredStates>(target.address() + 0x61A);
 		}
 	}
 
@@ -73,7 +73,7 @@ namespace UninterruptedAlteredStates
 
 		void Install()
 		{
-			REL::Relocation<std::uintptr_t> func{ REL::ID(38819) };
+			REL::Relocation<std::uintptr_t> func{ REL::ID(37864) };
 			stl::asm_replace<DispelAlteredStates>(func.address());
 		}
 	}
@@ -81,10 +81,10 @@ namespace UninterruptedAlteredStates
 	void Install()
 	{
 		const auto settings = Settings::GetSingleton();
-		
+
 		const auto invisState = settings->GetInvisState();
 		const auto etherealState = settings->GetEtherealState();
-		
+
 		if (invisState == DoNotDispel::kOnActivate || etherealState == DoNotDispel::kOnActivate) {
 			Activate::Install();
 		}
@@ -99,7 +99,7 @@ namespace Detection
 {
 	using Archetype = RE::EffectArchetypes::ArchetypeID;
 	using Detection = Settings::Detection;
-	
+
 	struct detail
 	{
 		static bool should_make_super_invisible(RE::Actor* a_target)
@@ -116,7 +116,7 @@ namespace Detection
 			return false;
 		}
 	};
-	
+
 	struct CalculateDetection
 	{
 		static void thunk(
@@ -144,8 +144,8 @@ namespace Detection
 	{
 		const auto settings = Settings::GetSingleton();
 		if (settings->GetInvisDetection() != Detection::kDisabled || settings->GetEtherealDetection() != Detection::kDisabled) {
-			REL::Relocation<std::uintptr_t> target{ REL::ID(42742) };
-			stl::write_thunk_call<CalculateDetection>(target.address() + 0x67B);
+			REL::Relocation<std::uintptr_t> target{ REL::ID(41659), 0x526 };
+			stl::write_thunk_call<CalculateDetection>(target.address());
 		}
 	}
 }
@@ -193,12 +193,12 @@ namespace Refraction
 			{
 				set_refraction(a_object, a_enable, a_power);
 			}
-			static inline constexpr std::size_t size = 0x14A;
+			static inline constexpr std::size_t size = 0x126;
 		};
 
 		void Install()
 		{
-			REL::Relocation<std::uintptr_t> func{ REL::ID(106513) };
+			REL::Relocation<std::uintptr_t> func{ REL::ID(99868) };
 			stl::asm_replace<Alt::SetRefractionRecursive>(func.address());
 		}
 	}
@@ -221,7 +221,7 @@ namespace MakeInvisible
 			return a_actor->extraList.HasType<RE::ExtraRefractionProperty>();
 		}
 	};
-	
+
 	namespace Blood
 	{
 		struct Initialize
@@ -248,7 +248,7 @@ namespace MakeInvisible
 			stl::write_vfunc<RE::BSTempEffectGeometryDecal, Initialize>();
 		}
 	}
-	
+
 	namespace Arrows
 	{
 		struct AddAttachedArrow3D
@@ -269,8 +269,8 @@ namespace MakeInvisible
 
 		void Install()
 		{
-			REL::Relocation<std::uintptr_t> target{ REL::ID(44031) };
-			stl::write_thunk_call<AddAttachedArrow3D>(target.address() + 0x688);
+			REL::Relocation<std::uintptr_t> target{ REL::ID(42856) };
+			stl::write_thunk_call<AddAttachedArrow3D>(target.address() + 0x53A);
 		}
 	}
 
@@ -286,22 +286,11 @@ namespace MakeInvisible
 	}
 }
 
-extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []() {
-	SKSE::PluginVersionData v;
-	v.PluginVersion(Version::MAJOR);
-	v.PluginName("Enhanced Invisibility"sv);
-	v.AuthorName("powerofthree");
-	v.UsesAddressLibrary(true);
-	v.CompatibleVersions({ SKSE::RUNTIME_LATEST });
-
-	return v;
-}();
-
-void InitializeLog()
+extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Query(const SKSE::QueryInterface* a_skse, SKSE::PluginInfo* a_info)
 {
 	auto path = logger::log_directory();
 	if (!path) {
-		stl::report_and_fail("Failed to find standard logging directory"sv);
+		return false;
 	}
 
 	*path /= fmt::format(FMT_STRING("{}.log"), Version::PROJECT);
@@ -313,27 +302,42 @@ void InitializeLog()
 	log->flush_on(spdlog::level::info);
 
 	spdlog::set_default_logger(std::move(log));
-	spdlog::set_pattern("[%H:%M:%S:%e] %v"s);
+	spdlog::set_pattern("[%l] %v"s);
 
 	logger::info(FMT_STRING("{} v{}"), Version::PROJECT, Version::NAME);
+
+	a_info->infoVersion = SKSE::PluginInfo::kVersion;
+	a_info->name = "Enhanced Invisibility";
+	a_info->version = Version::MAJOR;
+
+	if (a_skse->IsEditor()) {
+		logger::critical("Loaded in editor, marking as incompatible"sv);
+		return false;
+	}
+
+	const auto ver = a_skse->RuntimeVersion();
+	if (ver < SKSE::RUNTIME_1_5_39) {
+		logger::critical(FMT_STRING("Unsupported runtime version {}"), ver.string());
+		return false;
+	}
+
+	return true;
 }
 
 extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_skse)
 {
-	InitializeLog();
-
 	logger::info("loaded plugin");
 
 	SKSE::Init(a_skse);
 
 	if (Settings::GetSingleton()->LoadSettings()) {
-		SKSE::AllocTrampoline(48);
+		SKSE::AllocTrampoline(42);
 
 		Refraction::Install();
 		MakeInvisible::Install();
-		
-		UninterruptedAlteredStates::Install();
-		Detection::Install();
+
+		//UninterruptedAlteredStates::Install();
+		//Detection::Install();
 	}
 
 	return true;
