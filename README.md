@@ -1,6 +1,6 @@
-# Simple Activate SKSE
+# Enhanced Invisibility
 
-SKSE plugin that streamlines activation prompts
+SKSE plugin that improves and fixes Invisibility effects
 
 ## Requirements
 * [CMake](https://cmake.org/)
@@ -21,8 +21,8 @@ SKSE plugin that streamlines activation prompts
 
 ## Building
 ```
-git clone https://github.com/powerof3/SimpleActivateSKSE.git
-cd SimpleActivateSKSE
+git clone https://github.com/powerof3/EnhancedInvisibility.git
+cd EnhancedInvisibility
 cmake -B build -S .
 ```
 ## License
