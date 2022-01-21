@@ -109,11 +109,12 @@ namespace Detection
 			if (a_target->HasEffectWithArchetype(Archetype::kInvisibility)) {
 				const auto state = settings->GetInvisDetection();
 				return state == Detection::kEveryone || state == Detection::kOnlyPlayer && a_target->IsPlayerRef();
-			} else if (a_target->HasEffectWithArchetype(Archetype::kEtherealize)) {
-				const auto state = settings->GetEtherealDetection();
-				return state == Detection::kEveryone || state == Detection::kOnlyPlayer && a_target->IsPlayerRef();
 			}
-			return false;
+            if (a_target->HasEffectWithArchetype(Archetype::kEtherealize)) {
+                const auto state = settings->GetEtherealDetection();
+                return state == Detection::kEveryone || state == Detection::kOnlyPlayer && a_target->IsPlayerRef();
+            }
+            return false;
 		}
 	};
 	
@@ -175,7 +176,7 @@ namespace Refraction
 		void Install()
 		{
 			REL::Relocation<std::uintptr_t> target{ REL::ID(106513) };
-			stl::write_thunk_call<Alt::SetShaderFlag>(target.address() + 0xAE);
+			stl::write_thunk_call<SetShaderFlag>(target.address() + 0xAE);
 		}
 	}
 
@@ -192,7 +193,7 @@ namespace MakeInvisible
 {
 	struct detail
 	{
-		static bool has_refraction(RE::Actor* a_actor)
+		static bool has_refraction(const RE::Actor* a_actor)
 		{
 			return a_actor->extraList.HasType<RE::ExtraRefractionProperty>();
 		}
@@ -250,6 +251,78 @@ namespace MakeInvisible
 		}
 	}
 
+	namespace AlphaBlendedArmor
+	{
+		struct detail
+		{
+			static void bseffectshader_blending_on_armor_fix(const RE::BSTSmartPointer<RE::BipedAnim>& a_biped, float a_power)
+			{
+				if (a_biped) {
+					for (auto& bipedObject : a_biped->objects) {
+						auto& model = bipedObject.partClone;
+						if (model) {
+							RE::BSVisit::TraverseScenegraphGeometries(model.get(), [&](RE::BSGeometry* a_geometry) -> RE::BSVisit::BSVisitControl {
+								if (const auto shape = a_geometry->AsTriShape(); shape) {
+									const auto effectProp = netimmerse_cast<RE::BSEffectShaderProperty*>(a_geometry->properties[RE::BSGeometry::States::kEffect].get());
+									const auto alphaProp = netimmerse_cast<RE::NiAlphaProperty*>(a_geometry->properties[RE::BSGeometry::States::kProperty].get());
+									if (effectProp && alphaProp && alphaProp->GetAlphaBlending()) {
+										shape->SetAppCulled(a_power > 0.0f);
+									}
+								}
+								return RE::BSVisit::BSVisitControl::kContinue;
+							});
+						}
+					}
+				}
+			}
+		};
+
+		namespace Player
+		{
+			struct SetRefraction
+			{
+				static void thunk(RE::PlayerCharacter* a_this, bool a_enable, float a_refraction)
+				{
+					func(a_this, a_enable, a_refraction);
+
+					if (const auto& fBiped = a_this->GetBiped(true)) {
+						detail::bseffectshader_blending_on_armor_fix(fBiped, a_refraction);
+					}
+					if (const auto& tBiped = a_this->GetBiped(false)) {
+						detail::bseffectshader_blending_on_armor_fix(tBiped, a_refraction);
+					}
+				}
+				static inline REL::Relocation<decltype(thunk)> func;
+
+				static inline constexpr size_t size = 0x0C3;
+			};
+		}
+
+		namespace Character
+		{
+			struct SetRefraction
+			{
+				static void thunk(RE::Character* a_this, bool a_enable, float a_refraction)
+				{
+					func(a_this, a_enable, a_refraction);
+
+					if (const auto& biped = a_this->GetBiped()) {
+						detail::bseffectshader_blending_on_armor_fix(biped, a_refraction);
+					}
+				}
+				static inline REL::Relocation<decltype(thunk)> func;
+
+				static inline constexpr size_t size = 0x0C3;
+			};
+		}
+
+		void Install()
+		{
+			stl::write_vfunc<RE::PlayerCharacter, Player::SetRefraction>();
+			stl::write_vfunc<RE::Character, Character::SetRefraction>();
+		}
+	}
+
 	void Install()
 	{
 		const auto settings = Settings::GetSingleton();
@@ -258,6 +331,9 @@ namespace MakeInvisible
 		}
 		if (settings->GetAllowRefractBlood()) {
 			Blood::Install();
+		}
+		if (settings->GetAllowAlphaBlendFix()) {
+			AlphaBlendedArmor::Install();
 		}
 	}
 }
