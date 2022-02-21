@@ -1,6 +1,6 @@
 #include "Settings.h"
 
-//for AE
+//for AE/VR
 namespace UninterruptedAlteredStates
 {
 	using Archetype = RE::EffectArchetypes::ArchetypeID;
@@ -94,7 +94,7 @@ namespace UninterruptedAlteredStates
 	}
 }
 
-//for AE
+//for AE/VR
 namespace Detection
 {
 	using Archetype = RE::EffectArchetypes::ArchetypeID;
@@ -245,7 +245,13 @@ namespace MakeInvisible
 		void Install()
 		{
 			REL::Relocation<std::uintptr_t> target{ REL::ID(42856) };
-			stl::write_thunk_call<AddAttachedArrow3D>(target.address() + 0x53A);
+			stl::write_thunk_call<AddAttachedArrow3D>(target.address() +
+#ifndef SKYRIMVR
+			0x53A
+#else
+			0x737
+#endif
+			);
 		}
 	}
 
@@ -292,7 +298,11 @@ namespace MakeInvisible
 				}
 				static inline REL::Relocation<decltype(thunk)> func;
 
+#ifndef SKYRIMVR
 				static inline constexpr size_t size = 0x0C3;
+#else
+				static inline constexpr size_t size = 0x0C5;
+#endif
 			};
 		}
 
@@ -310,7 +320,11 @@ namespace MakeInvisible
 				}
 				static inline REL::Relocation<decltype(thunk)> func;
 
+#ifndef SKYRIMVR
 				static inline constexpr size_t size = 0x0C3;
+#else
+				static inline constexpr size_t size = 0x0C5;
+#endif
 			};
 		}
 
@@ -366,7 +380,13 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Query(const SKSE::QueryInterface* a
 	}
 
 	const auto ver = a_skse->RuntimeVersion();
-	if (ver < SKSE::RUNTIME_1_5_39) {
+	if (ver <
+#ifndef SKYRIMVR
+		SKSE::RUNTIME_1_5_39
+#else
+		SKSE::RUNTIME_VR_1_4_15
+#endif
+	) {
 		logger::critical(FMT_STRING("Unsupported runtime version {}"), ver.string());
 		return false;
 	}
@@ -381,13 +401,21 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 	SKSE::Init(a_skse);
 
 	if (Settings::GetSingleton()->LoadSettings()) {
-		SKSE::AllocTrampoline(28);
+		SKSE::AllocTrampoline(
+#ifndef SKYRIMVR
+			28
+#else
+			56
+#endif
+		);
 
 		Refraction::Install();
 		MakeInvisible::Install();
 
-		//UninterruptedAlteredStates::Install();
-		//Detection::Install();
+#ifdef SKYRIMVR
+		UninterruptedAlteredStates::Install();
+		Detection::Install();
+#endif
 	}
 
 	return true;
