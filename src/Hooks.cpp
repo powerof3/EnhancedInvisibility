@@ -47,7 +47,7 @@ namespace EnhancedInvisibility
 			void Install()
 			{
 				REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(19369, 19796), OFFSET(0x61A, 0x74A) };
-				stl::write_thunk_call<DispelAlteredStates>(target.address() + 0x61A);
+				stl::write_thunk_call<DispelAlteredStates>(target.address());
 			}
 		}
 
