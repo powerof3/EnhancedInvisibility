@@ -1,12 +1,14 @@
 cmake_minimum_required(VERSION 3.20)
 set(NAME "po3_EnhancedInvisibility")
-set(VERSION 1.2.0)
+set(VERSION 1.3.0)
 set(VR_VERSION 1)
+set(AE_VERSION 1)
 
 # ---- Options ----
 
 option(COPY_BUILD "Copy the build output to the Skyrim directory." TRUE)
 option(BUILD_SKYRIMVR "Build for Skyrim VR" OFF)
+option(BUILD_SKYRIMAE "Build for Skyrim AE" OFF)
 
 # ---- Cache build vars ----
 
@@ -32,7 +34,15 @@ macro(find_commonlib_path)
 	endif()
 endmacro()
 
-if(BUILD_SKYRIMVR)
+set_from_environment(VCPKG_ROOT)
+if(BUILD_SKYRIMAE)
+	add_compile_definitions(SKYRIM_AE)
+	set(CommonLibName "CommonLibSSE")
+	set_from_environment(SkyrimAEPath)
+	set(SkyrimPath ${SkyrimAEPath})
+	set(SkyrimVersion "Skyrim AE")
+	set(VERSION ${VERSION}.${AE_VERSION})
+elseif(BUILD_SKYRIMVR)
 	add_compile_definitions(SKYRIMVR)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 	set(CommonLibName "CommonLibVR")
@@ -45,12 +55,11 @@ else()
 	set_from_environment(Skyrim64Path)
 	set(SkyrimPath ${Skyrim64Path})
 	set(SkyrimVersion "Skyrim SSE")
-	set(VERSION ${VERSION}.0)
 endif()
 find_commonlib_path()
 message(
 	STATUS
-	"Building ${NAME} ${VERSION} for ${SkyrimVersion} at ${SkyrimPath} with ${CommonLibName} at ${CommonLibPath}."
+	"Building for ${SkyrimVersion} at ${SkyrimPath} with ${CommonLibName} at ${CommonLibPath}."
 )
 
 if (DEFINED VCPKG_ROOT)
@@ -100,6 +109,12 @@ endif()
 add_compile_definitions(
 	SKSE_SUPPORT_XBYAK
 )
+
+if (BUILD_SKYRIMAE)
+	add_compile_definitions(
+		SKYRIM_SUPPORT_AE
+	)
+endif()
 
 if (MSVC)
 	if (NOT ${CMAKE_GENERATOR} STREQUAL "Ninja")
@@ -162,7 +177,7 @@ add_library(
 target_compile_features(
 	${PROJECT_NAME}
 	PRIVATE
-		cxx_std_20
+		cxx_std_23
 )
 
 target_compile_definitions(
@@ -241,7 +256,6 @@ if (MSVC)
 			"$<$<CONFIG:DEBUG>:/INCREMENTAL;/OPT:NOREF;/OPT:NOICF>"
 			"$<$<CONFIG:RELEASE>:/INCREMENTAL:NO;/OPT:REF;/OPT:ICF;/DEBUG:FULL>"
 	)
-
 endif ()
 
 # ---- Post build ----
@@ -251,8 +265,8 @@ if (COPY_BUILD)
 		add_custom_command(
 			TARGET ${PROJECT_NAME}
 			POST_BUILD
-			COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${PROJECT_NAME}> ${SkyrimPath}/Data/SKSE/Plugins/
-			COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PDB_FILE:${PROJECT_NAME}> ${SkyrimPath}/Data/SKSE/Plugins/
+			COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${PROJECT_NAME}> ${SkyrimPath}/SKSE/Plugins/
+			COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PDB_FILE:${PROJECT_NAME}> ${SkyrimPath}/SKSE/Plugins/
 		)
 	else ()
 		message(

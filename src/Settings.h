@@ -18,7 +18,6 @@ public:
 	};
 
 	[[nodiscard]] static Settings* GetSingleton();
-	[[nodiscard]] bool LoadSettings();
 
 	[[nodiscard]] bool GetAllowRefractionFix() const;
 	[[nodiscard]] bool GetAllowRefractBlood() const;
@@ -32,7 +31,14 @@ public:
 	[[nodiscard]] const Detection& GetEtherealDetection() const;
 
 private:
-	struct
+	Settings()
+	{
+		LoadSettings();
+	}
+
+    void LoadSettings();
+
+    struct
 	{
 		bool fixRefraction{ true };
 		bool refractBlood{ true };

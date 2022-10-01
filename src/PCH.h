@@ -34,7 +34,8 @@ namespace stl
 	void write_thunk_call(std::uintptr_t a_src)
 	{
 		auto& trampoline = SKSE::GetTrampoline();
-		T::func = trampoline.write_call<5>(a_src, T::thunk);
+		SKSE::AllocTrampoline(14);
+	    T::func = trampoline.write_call<5>(a_src, T::thunk);
 	}
 
 	template <class F, class T>
@@ -44,5 +45,19 @@ namespace stl
 		T::func = vtbl.write_vfunc(T::size, T::thunk);
 	}
 }
+
+#ifdef SKYRIM_AE
+#	define OFFSET(se, ae) ae
+#	define OFFSET_VTABLE(se, vr) se
+#	define OFFSET_3(se, ae, vr) ae
+#elif SKYRIMVR
+#	define OFFSET(se, ae) se
+#	define OFFSET_VTABLE(se, vr) vr
+#	define OFFSET_3(se, ae, vr) vr
+#else
+#	define OFFSET(se, ae) se
+#	define OFFSET_VTABLE(se, vr) se
+#	define OFFSET_3(se, ae, vr) se
+#endif
 
 #include "Version.h"
