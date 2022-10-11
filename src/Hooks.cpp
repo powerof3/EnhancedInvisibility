@@ -33,11 +33,11 @@ namespace EnhancedInvisibility
 				{
 					const auto settings = Settings::GetSingleton();
 
-					if (settings->GetInvisState() != DoNotDispel::kOnActivate) {
+					if (settings->GetInvisState() == DoNotDispel::kDisabled) {
 						detail::dispel_invisibility(a_actor, a_archetype);
 					}
 
-					if (settings->GetEtherealState() != DoNotDispel::kOnActivate) {
+					if (settings->GetEtherealState() == DoNotDispel::kDisabled) {
 						detail::dispel_ethereal_form(a_actor, a_archetype);
 					}
 				}
