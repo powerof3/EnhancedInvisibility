@@ -86,9 +86,13 @@ namespace EnhancedInvisibility
 
 			if (invisState == DoNotDispel::kOnActivate || etherealState == DoNotDispel::kOnActivate) {
 				Activate::Install();
+
+				logger::info("Installing Uninterrupted Actions [Activate] hook");
 			}
 			if (invisState == DoNotDispel::kOnAll || etherealState == DoNotDispel::kOnAll) {
 				All::Install();
+
+				logger::info("Installing Uninterrupted Actions [All] hook");
 			}
 		}
 	}
@@ -146,6 +150,8 @@ namespace EnhancedInvisibility
 			if (settings->GetInvisDetection() != DetectionState::kDisabled || settings->GetEtherealDetection() != DetectionState::kDisabled) {
 				REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(41659, 42742), OFFSET(0x526, 0x67B) };
 				stl::write_thunk_call<CalculateDetection>(target.address());
+
+				logger::info("Installing Make Undetectable hook");
 			}
 		}
 	}
@@ -175,6 +181,8 @@ namespace EnhancedInvisibility
 			if (settings->GetAllowRefractionFix()) {
 				REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(99868, 106513), OFFSET(0x97, 0xAE) };
 				stl::write_thunk_call<SetShaderFlag>(target.address());
+
+				logger::info("Installing Refraction Shader Fix");
 			}
 		}
 	}
@@ -318,24 +326,43 @@ namespace EnhancedInvisibility
 			const auto settings = Settings::GetSingleton();
 			if (settings->GetAllowRefractArrows()) {
 				Arrows::Install();
+
+				logger::info("Installing Dynamic Blood Refraction Fix");
 			}
 			if (settings->GetAllowRefractBlood()) {
 				Blood::Install();
+
+				logger::info("Installing Dynamic Attached Arrow Refraction Fix");
 			}
 			if (settings->GetAllowAlphaBlendFix()) {
 				AlphaBlendedArmor::Install();
+
+				logger::info("Installing Armor Alpha Blend Fix");
 			}
 		}
 	}
 
-    void Install()
+	void Install()
 	{
-		Refraction::Install();
+		logger::info("{:*^30}", "HOOKS");
+
+	    Refraction::Install();
 		MakeInvisible::Install();
 
-		if (!GetModuleHandle(L"UninterruptedEtherealForm") && !GetModuleHandle(L"UninterruptedInvisibility")) {
-			MakeUninterrupted::Install();
-			Detection::Install();
+#if !defined(SKYRIM_AE) && !defined(SKYRIMVR)  // SSE only
+		if (GetModuleHandle(L"Data\\DLLPlugins\\NetScriptFramework.Runtime.dll")) {
+			const auto pluginPath = std::filesystem::path(R"(Data\NetScriptFramework\Plugins\)");
+
+			const auto invisibilityDLL = pluginPath / "UninterruptedInvisibility.dll";
+			const auto etherealFormDLL = pluginPath / "UninterruptedEtherealForm.dll";
+
+			if (std::filesystem::exists(invisibilityDLL) || std::filesystem::exists(invisibilityDLL)) {
+				logger::info("UninterruptedEtherealForm/UninterruptedInvisibility plugins detected, skipping hooks");
+				return;
+			}
 		}
+#endif
+		MakeUninterrupted::Install();
+		Detection::Install();
 	}
 }
