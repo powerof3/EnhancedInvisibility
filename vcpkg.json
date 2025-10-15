@@ -5,10 +5,10 @@
   "homepage": "",
   "license": "MIT",
   "dependencies": [
-    "boost-stl-interfaces",
+    "clib-util",
     "rsm-binary-io",
-    "simpleini",
     "spdlog",
     "xbyak"
-  ]
+  ],
+  "builtin-baseline": "8ce02b3d9a447071083436ad36f318dd19dd19ad"
 }

@@ -4,17 +4,21 @@
 #define NOMINMAX
 
 #include "RE/Skyrim.h"
+#include "REX/REX/Singleton.h"
 #include "SKSE/SKSE.h"
 
-#include <SimpleIni.h>
+#include "ClibUtil/string.hpp"
+#include "ClibUtil/numeric.hpp"
+#include "ClibUtil/simpleINI.hpp"
 #include <spdlog/sinks/basic_file_sink.h>
 #include <xbyak/xbyak.h>
 
 #define DLLEXPORT __declspec(dllexport)
 
 namespace logger = SKSE::log;
-namespace string = SKSE::stl::string;
-namespace numeric = SKSE::stl::numeric;
+namespace string = clib_util::string;
+namespace numeric = clib_util::numeric;
+namespace ini = clib_util::ini;
 
 using namespace std::literals;
 
@@ -34,7 +38,6 @@ namespace stl
 	void write_thunk_call(std::uintptr_t a_src)
 	{
 		auto& trampoline = SKSE::GetTrampoline();
-		SKSE::AllocTrampoline(14);
 	    T::func = trampoline.write_call<5>(a_src, T::thunk);
 	}
 
@@ -42,7 +45,7 @@ namespace stl
 	void write_vfunc()
 	{
 		REL::Relocation<std::uintptr_t> vtbl{ F::VTABLE[0] };
-		T::func = vtbl.write_vfunc(T::size, T::thunk);
+		T::func = vtbl.write_vfunc(T::index, T::thunk);
 	}
 }
 

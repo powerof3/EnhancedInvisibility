@@ -7,20 +7,20 @@ namespace EnhancedInvisibility
 	{
 		struct detail
 		{
-			static void dispel_invisibility(RE::Actor* a_actor, Archetype a_archetype)
+			static void dispel_invisibility(RE::Actor* a_actor, RE::EffectArchetype a_archetype)
 			{
-				if ((a_actor->flags & 2) != 0 && a_archetype != Archetype::kInvisibility) {
-					a_actor->DispelEffectsWithArchetype(Archetype::kInvisibility, true);
+				if ((a_actor->flags & 2) != 0 && a_archetype != RE::EffectArchetype::kInvisibility) {
+					a_actor->DispelEffectsWithArchetype(RE::EffectArchetype::kInvisibility, true);
 				}
 			}
 
-			static void dispel_ethereal_form(RE::Actor* a_actor, Archetype a_archetype)
+			static void dispel_ethereal_form(RE::Actor* a_actor, RE::EffectArchetype a_archetype)
 			{
 				if (!a_actor->IsGhost()) {
 					return;
 				}
-				if (a_archetype != Archetype::kEtherealize) {
-					a_actor->DispelEffectsWithArchetype(Archetype::kEtherealize, true);
+				if (a_archetype != RE::EffectArchetype::kEtherealize) {
+					a_actor->DispelEffectsWithArchetype(RE::EffectArchetype::kEtherealize, true);
 				}
 			}
 		};
@@ -29,7 +29,7 @@ namespace EnhancedInvisibility
 		{
 			struct DispelAlteredStates
 			{
-				static void thunk(RE::Actor* a_actor, Archetype a_archetype)
+				static void thunk(RE::Actor* a_actor, RE::EffectArchetype a_archetype)
 				{
 					const auto settings = Settings::GetSingleton();
 
@@ -55,7 +55,7 @@ namespace EnhancedInvisibility
 		{
 			struct DispelAlteredStates
 			{
-				static void func(RE::Actor* a_actor, Archetype a_archetype)
+				static void func(RE::Actor* a_actor, RE::EffectArchetype a_archetype)
 				{
 					const auto settings = Settings::GetSingleton();
 
@@ -86,12 +86,12 @@ namespace EnhancedInvisibility
 
 			if (invisState == DoNotDispel::kOnActivate || etherealState == DoNotDispel::kOnActivate) {
 				Activate::Install();
-
+				
 				logger::info("Installing Uninterrupted Actions [Activate] hook");
 			}
 			if (invisState == DoNotDispel::kOnAll || etherealState == DoNotDispel::kOnAll) {
 				All::Install();
-
+				
 				logger::info("Installing Uninterrupted Actions [All] hook");
 			}
 		}
@@ -99,42 +99,21 @@ namespace EnhancedInvisibility
 
 	namespace Detection
 	{
-		using Archetype = RE::EffectArchetypes::ArchetypeID;
-		using Detection = Settings::Detection;
-
-		struct detail
-		{
-			static bool should_make_super_invisible(RE::Actor* a_target)
-			{
-				const auto settings = Settings::GetSingleton();
-
-				if (a_target->HasEffectWithArchetype(Archetype::kInvisibility)) {
-					const auto state = settings->GetInvisDetection();
-					return state == DetectionState::kEveryone || state == DetectionState::kOnlyPlayer && a_target->IsPlayerRef();
-				}
-				if (a_target->HasEffectWithArchetype(Archetype::kEtherealize)) {
-					const auto state = settings->GetEtherealDetection();
-					return state == DetectionState::kEveryone || state == DetectionState::kOnlyPlayer && a_target->IsPlayerRef();
-				}
-				return false;
-			}
-		};
-
 		struct CalculateDetection
 		{
 			static void thunk(
-				RE::Actor* a_source,
-				RE::Actor* a_target,
-				std::int32_t& a_detectionValue,
-				std::uint8_t& a_unk04,
-				std::uint8_t& a_unk05,
+				RE::Actor*     a_source,
+				RE::Actor*     a_target,
+				std::int32_t&  a_detectionValue,
+				std::uint8_t&  a_unk04,
+				std::uint8_t&  a_unk05,
 				std::uint32_t& a_unk06,
-				RE::NiPoint3& a_pos,
-				float& a_unk08,
-				float& a_unk09,
-				float& a_unk10)
+				RE::NiPoint3&  a_pos,
+				float&         a_unk08,
+				float&         a_unk09,
+				float&         a_unk10)
 			{
-				if (detail::should_make_super_invisible(a_target)) {
+				if (Settings::GetSingleton()->ShouldMakeSuperInvisible(a_target)) {
 					a_detectionValue = -1000;
 					return;
 				}
@@ -161,7 +140,7 @@ namespace EnhancedInvisibility
 		void set_refraction(RE::NiAVObject* a_object, bool a_enable, float a_power, bool a_unk04)
 		{
 			using func_t = decltype(&set_refraction);
-			REL::Relocation<func_t> func{ RELOCATION_ID(99868, 106513) };
+			static REL::Relocation<func_t> func{ RELOCATION_ID(99868, 106513) };
 			return func(a_object, a_enable, a_power, a_unk04);
 		}
 
@@ -189,14 +168,6 @@ namespace EnhancedInvisibility
 
 	namespace MakeInvisible
 	{
-		struct detail
-		{
-			static bool has_refraction(const RE::Actor* a_actor)
-			{
-				return a_actor->extraList.HasType<RE::ExtraRefractionProperty>();
-			}
-		};
-
 		namespace Blood
 		{
 			struct Initialize
@@ -205,17 +176,17 @@ namespace EnhancedInvisibility
 				{
 					func(a_this);
 
-					if (a_this->decal && a_this->attachedGeometry) {
+					if (a_this && a_this->decal && a_this->attachedGeometry) {
 						const auto user = a_this->attachedGeometry->GetUserData();
 						const auto actor = user ? user->As<RE::Actor>() : nullptr;
 
-						if (actor && detail::has_refraction(actor)) {  //doesn't matter what refraction power is
+						if (actor && actor->extraList.HasType<RE::ExtraRefractionProperty>()) {  //doesn't matter what refraction power is
 							Refraction::set_refraction(a_this->decal.get(), true, 1.0f, true);
 						}
 					}
 				}
 				static inline REL::Relocation<decltype(thunk)> func;
-				static inline size_t size = 0x25;
+				static constexpr std::size_t                   index = 0x25;
 			};
 
 			void Install()
@@ -232,7 +203,7 @@ namespace EnhancedInvisibility
 				{
 					if (a_projectile3D) {
 						const auto actor = stl::adjust_pointer<RE::Actor>(a_extraList, -0x70);
-						if (actor && detail::has_refraction(actor)) {
+						if (actor && actor->extraList.HasType<RE::ExtraRefractionProperty>()) {
 							Refraction::set_refraction(a_projectile3D.get(), true, 0.5f, true);
 						}
 					}
@@ -291,8 +262,7 @@ namespace EnhancedInvisibility
 						}
 					}
 					static inline REL::Relocation<decltype(thunk)> func;
-
-					static inline constexpr size_t size = OFFSET_VTABLE(0x0C3, 0x0C5);
+					static constexpr std::size_t                   index = OFFSET_VTABLE(0x0C3, 0x0C5);
 				};
 			}
 
@@ -309,8 +279,7 @@ namespace EnhancedInvisibility
 						}
 					}
 					static inline REL::Relocation<decltype(thunk)> func;
-
-					static inline constexpr size_t size = OFFSET_VTABLE(0x0C3, 0x0C5);
+					static constexpr std::size_t                   index = OFFSET_VTABLE(0x0C3, 0x0C5);
 				};
 			}
 
@@ -346,7 +315,11 @@ namespace EnhancedInvisibility
 	{
 		logger::info("{:*^30}", "HOOKS");
 
-	    Refraction::Install();
+		Settings::GetSingleton()->LoadSettings();
+
+		SKSE::AllocTrampoline(14*4);
+		
+		Refraction::Install();
 		MakeInvisible::Install();
 
 #if !defined(SKYRIM_AE) && !defined(SKYRIMVR)  // SSE only
@@ -356,7 +329,8 @@ namespace EnhancedInvisibility
 			const auto invisibilityDLL = pluginPath / "UninterruptedInvisibility.dll";
 			const auto etherealFormDLL = pluginPath / "UninterruptedEtherealForm.dll";
 
-			if (std::filesystem::exists(invisibilityDLL) || std::filesystem::exists(invisibilityDLL)) {
+			std::error_code ec;
+			if (std::filesystem::exists(invisibilityDLL, ec) || std::filesystem::exists(etherealFormDLL, ec)) {
 				logger::info("UninterruptedEtherealForm/UninterruptedInvisibility plugins detected, skipping hooks");
 				return;
 			}

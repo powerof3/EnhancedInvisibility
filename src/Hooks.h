@@ -4,9 +4,8 @@
 
 namespace EnhancedInvisibility
 {
-	using Archetype = RE::EffectArchetypes::ArchetypeID;
 	using DoNotDispel = Settings::DoNotDispel;
-	using DetectionState = Settings::Detection;
+	using DetectionState = Settings::DetectionState;
 
 	void Install();
 }
